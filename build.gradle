@@ -1,0 +1,54 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
+    id 'java'
+}
+
+group = 'net.valdemarf'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven { url "https://maven.enginehub.org/repo/" }
+    maven {
+        name = 'papermc-repo'
+        url = 'https://papermc.io/repo/repository/maven-public/'
+    }
+    maven {
+        name = 'sonatype'
+        url = 'https://oss.sonatype.org/content/groups/public/'
+    }
+    maven {
+        name = 'ACF'
+        url = "https://repo.aikar.co/content/groups/aikar/"
+    }
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.17.1-R0.1-SNAPSHOT'
+    implementation "co.aikar:acf-paper:0.5.1-SNAPSHOT"
+    implementation 'fr.mrmicky:fastboard:1.2.1'
+    implementation 'org.mongodb:mongo-java-driver:3.12.10'
+    compileOnly 'com.sk89q.worldguard:worldguard-bukkit:7.0.0'
+}
+
+processResources {
+    eachFile { expand version: version }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(16)
+    }
+}
+
+shadowJar {
+    relocate 'co.aikar.commands', 'net.valdemarf.parkourplugin.acf'
+    relocate 'co.aikar.locales', 'net.valdemarf.parkourplugin.locales'
+    relocate 'fr.mrmicky.fastboard', 'net.valdemarf.parkourplugin.fastboard'
+}
+
+build.dependsOn shadowJar
+
+

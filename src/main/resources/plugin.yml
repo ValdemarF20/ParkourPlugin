@@ -1,0 +1,5 @@
+name: ParkourPlugin
+version: ${version}
+main: net.valdemarf.parkourplugin.ParkourPlugin
+api-version: 1.17
+depend: [WorldGuard]

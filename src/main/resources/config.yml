@@ -1,0 +1,4 @@
+# Database properties used to connect the MongoDB
+databaseName: 'test'
+username: 'username'
+password: 'password'
