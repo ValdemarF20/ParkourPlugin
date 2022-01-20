@@ -1,7 +1,7 @@
 package net.valdemarf.parkourplugin.listeners;
 
 import fr.mrmicky.fastboard.FastBoard;
-import net.valdemarf.parkourplugin.ParkourPlugin;
+import net.valdemarf.parkourplugin.managers.CheckpointManager;
 import net.valdemarf.parkourplugin.managers.ParkourManager;
 import net.valdemarf.parkourplugin.managers.ScoreboardManager;
 import org.bukkit.entity.Player;
@@ -10,14 +10,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-public class JoinLeaveListener implements Listener {
-    private final ScoreboardManager scoreboardManager;
-    private final ParkourManager parkourManager;
-
-    public JoinLeaveListener(ParkourManager parkourManager, ScoreboardManager scoreboardManager) {
-        this.parkourManager = parkourManager;
-        this.scoreboardManager = scoreboardManager;
-    }
+public record JoinLeaveListener(ParkourManager parkourManager,
+                                ScoreboardManager scoreboardManager,
+                                CheckpointManager checkpointManager) implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
@@ -25,6 +20,7 @@ public class JoinLeaveListener implements Listener {
 
         FastBoard board = new FastBoard(player);
         scoreboardManager.getBoards().putIfAbsent(player.getUniqueId(), board);
+        checkpointManager.setCheckpoint(player, 0);
 
         scoreboardManager.updateDefaultBoard(board);
     }

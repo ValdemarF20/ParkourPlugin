@@ -23,8 +23,7 @@ public final class ParkourPlugin extends JavaPlugin {
     private Database databaseManager;
     private PlayerTimeManager playerTimeManager;
 
-
-    public boolean checker = false;
+    public boolean endChecker = false;
 
     @Override
     public void onEnable() {
@@ -52,7 +51,7 @@ public final class ParkourPlugin extends JavaPlugin {
 
         // Listeners
         this.getServer().getPluginManager().registerEvents(new MoveListener(this, parkourManager), this);
-        this.getServer().getPluginManager().registerEvents(new JoinLeaveListener(parkourManager, scoreboardManager), this);
+        this.getServer().getPluginManager().registerEvents(new JoinLeaveListener(parkourManager, scoreboardManager, checkpointManager), this);
 
         scoreboardManager.updateDefaultScoreboards();
     }
