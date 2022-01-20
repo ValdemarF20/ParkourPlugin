@@ -50,7 +50,6 @@ public final class ParkourPlugin extends JavaPlugin {
     private static ParkourPlugin INSTANCE;
 
     public boolean checker = false;
-    private final ExecutorService executor = Executors.newCachedThreadPool();
 
     @Override
     public void onEnable() {
@@ -69,7 +68,7 @@ public final class ParkourPlugin extends JavaPlugin {
         ConfigManager configManager = new ConfigManager(this);
         configManager.instantiate();
         playerTimeManager = new PlayerTimeManager(this);
-        database = new Database(configManager, playerTimeManager);
+        database = new Database(configManager, this);
 
         checkpointManager = new CheckpointManager(this);
         PaperCommandManager manager = new PaperCommandManager(this);
@@ -115,31 +114,32 @@ public final class ParkourPlugin extends JavaPlugin {
         for (PlayerTime playerTime : leaderboard) {
             Document document = Document.parse(database.toJson(playerTime));
 
-            CompletableFuture.runAsync(() -> ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().
-                            replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
-                    ParkourPlugin.getInstance().getExecutor());
+            CompletableFuture.runAsync(() -> database.getLeaderboardCollection().
+                    replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
+                    Database.EXECUTOR);
         }
 
         // Updates the personal bests
         for (PlayerTime playerTime : personalBests) {
             Document document = Document.parse(database.toJson(playerTime));
 
-            ParkourPlugin.getInstance().getDatabase().getPersonalBestCollection().
-                    replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true));
+            CompletableFuture.runAsync(() -> database.getPersonalBestCollection().
+                    replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
+                    Database.EXECUTOR);
         }
 
-        executor.shutdown(); // Stops new tasks from being scheduled to the executor.
+        Database.EXECUTOR.shutdown(); // Stops new tasks from being scheduled to the executor.
 
         try {
-            if (!executor.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for existing tasks to terminate.
-                executor.shutdownNow(); // Cancel currently executing tasks that didn't finish in the time.
+            if (!Database.EXECUTOR.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for existing tasks to terminate.
+                Database.EXECUTOR.shutdownNow(); // Cancel currently executing tasks that didn't finish in the time.
 
-                if (!executor.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for tasks to respond to cancellation.
+                if (!Database.EXECUTOR.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for tasks to respond to cancellation.
                     LOGGER.error("Pool failed to terminate");
                 }
             }
         } catch (InterruptedException e) {
-            executor.shutdownNow(); // Cancel currently executing tasks if interrupted.
+            Database.EXECUTOR.shutdownNow(); // Cancel currently executing tasks if interrupted.
             Thread.currentThread().interrupt(); // Preserve interrupt status.
         }
     }
@@ -200,16 +200,8 @@ public final class ParkourPlugin extends JavaPlugin {
         return leaderboard;
     }
 
-    public TreeSet<PlayerTime> getPersonalBests() {
-        return personalBests;
-    }
-
     public Database getDatabase() {
         return database;
-    }
-
-    public static ParkourPlugin getInstance() {
-        return INSTANCE;
     }
 
     public ParkourManager getParkourManager() {
@@ -224,7 +216,7 @@ public final class ParkourPlugin extends JavaPlugin {
         return scoreboardManager;
     }
 
-    public Executor getExecutor() {
-        return executor;
+    public static ParkourPlugin getInstance() {
+        return INSTANCE;
     }
 }

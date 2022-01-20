@@ -1,13 +1,12 @@
 package net.valdemarf.parkourplugin.playertime;
 
 import net.valdemarf.parkourplugin.Formatter;
-import net.valdemarf.parkourplugin.ParkourPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.util.UUID;
 
-public final record PlayerTime(ParkourPlugin parkourPlugin, Duration duration, UUID uuid) implements Comparable<PlayerTime> {
+public final record PlayerTime(Duration duration, UUID uuid) implements Comparable<PlayerTime> {
 
     public Duration getDuration() {
         return duration;

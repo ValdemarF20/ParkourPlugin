@@ -11,21 +11,24 @@ import com.mongodb.client.model.ReplaceOptions;
 import net.valdemarf.parkourplugin.ParkourPlugin;
 import net.valdemarf.parkourplugin.managers.ConfigManager;
 import net.valdemarf.parkourplugin.playertime.PlayerTime;
-import net.valdemarf.parkourplugin.playertime.PlayerTimeManager;
 import org.bson.Document;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class Database {
 
     private final MongoCollection<Document> leaderboardCollection;
     private final MongoCollection<Document> personalBestCollection;
 
-    private final PlayerTimeManager playerTimeManager;
+    private final ParkourPlugin parkourPlugin;
 
-    public Database(ConfigManager config, PlayerTimeManager playerTimeManager) {
-        this.playerTimeManager = playerTimeManager;
+    public static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
+
+    public Database(ConfigManager config, ParkourPlugin parkourPlugin) {
+        this.parkourPlugin = parkourPlugin;
 
         ConnectionString connectionString = new ConnectionString(
                 "mongodb+srv://" +
@@ -59,36 +62,36 @@ public final class Database {
     public void serializeLeaderboard(PlayerTime playerTime) {
         Document document = Document.parse(toJson(playerTime));
 
-        CompletableFuture.runAsync(() -> ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().
+        CompletableFuture.runAsync(() -> parkourPlugin.getDatabase().getLeaderboardCollection().
                         replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
-                ParkourPlugin.getInstance().getExecutor());
+                EXECUTOR);
     }
 
     public void serializePersonalBest(PlayerTime playerTime) {
         Document document = Document.parse(toJson(playerTime));
 
-        CompletableFuture.runAsync(() -> ParkourPlugin.getInstance().getDatabase().getPersonalBestCollection().
+        CompletableFuture.runAsync(() -> parkourPlugin.getDatabase().getPersonalBestCollection().
                 replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
-                ParkourPlugin.getInstance().getExecutor());
+                EXECUTOR);
     }
 
     public void serializePersonalBests() {
-        for (PlayerTime playerTime : playerTimeManager.getPersonalBests()) {
+        for (PlayerTime playerTime : parkourPlugin.getPlayerTimeManager().getPersonalBests()) {
             serializePersonalBest(playerTime);
         }
     }
 
     public void serializeLeaderboards() {
-        for (PlayerTime playerTime : playerTimeManager.getPersonalBests()) {
+        for (PlayerTime playerTime : parkourPlugin.getPlayerTimeManager().getPersonalBests()) {
             serializeLeaderboard(playerTime);
         }
     }
 
     public void deserializeLeaderboard() {
-        Set<PlayerTime> leaderboardTimes = playerTimeManager.getLeaderboardTimes();
+        Set<PlayerTime> leaderboardTimes = parkourPlugin.getPlayerTimeManager().getLeaderboardTimes();
 
         // Deserializing - getting an object from json in the database
-        for (Document playerTimeDocument : ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().find()) {
+        for (Document playerTimeDocument : parkourPlugin.getDatabase().getLeaderboardCollection().find()) {
             PlayerTime dbPlayerTime = ParkourPlugin.GSON.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
 
             if (leaderboardTimes.isEmpty()) {
@@ -118,10 +121,10 @@ public final class Database {
      * local time is faster that the time from database
      */
     public void deserializePersonalBests() {
-        Set<PlayerTime> personalBests = playerTimeManager.getPersonalBests();
+        Set<PlayerTime> personalBests = parkourPlugin.getPlayerTimeManager().getPersonalBests();
 
         // Deserializing - getting an object from json in the database
-        for (Document playerTimeDocument : ParkourPlugin.getInstance().getDatabase().getPersonalBestCollection().find()) {
+        for (Document playerTimeDocument : parkourPlugin.getDatabase().getPersonalBestCollection().find()) {
             PlayerTime dbPlayerTime = ParkourPlugin.GSON.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
 
             if(personalBests.isEmpty()) {

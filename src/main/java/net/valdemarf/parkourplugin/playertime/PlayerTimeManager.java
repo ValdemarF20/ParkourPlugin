@@ -1,9 +1,6 @@
 package net.valdemarf.parkourplugin.playertime;
 
 import net.valdemarf.parkourplugin.ParkourPlugin;
-import org.bson.Document;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.TreeSet;
@@ -13,11 +10,9 @@ public final class PlayerTimeManager {
     private final TreeSet<PlayerTime> leaderboardTimes;
     private final TreeSet<PlayerTime> personalBests;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(PlayerTimeManager.class);
-
     public PlayerTimeManager(ParkourPlugin parkourPlugin) {
         this.leaderboardTimes = parkourPlugin.getLeaderboard();
-        this.personalBests = parkourPlugin.getPersonalBests();
+        this.personalBests = (TreeSet<PlayerTime>) parkourPlugin.getPlayerTimeManager().getPersonalBests();
     }
 
     public String getPersonalBest(UUID uuid) {

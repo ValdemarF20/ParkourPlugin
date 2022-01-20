@@ -74,12 +74,9 @@ public final record MoveListener(ParkourPlugin parkourPlugin, ParkourManager par
                         player.sendMessage("Congratulations, you've finished the parkour in " +
                                 Formatter.formatTime(duration.toMillis()));
 
-                        PlayerTime newTime = new PlayerTime(
-                                parkourPlugin,
-                                duration,
-                                player.getUniqueId());
+                        PlayerTime newTime = new PlayerTime(duration, player.getUniqueId());
 
-                        TreeSet<PlayerTime> personalBests = parkourPlugin.getPersonalBests();
+                        TreeSet<PlayerTime> personalBests = (TreeSet<PlayerTime>) parkourPlugin.getPlayerTimeManager().getPersonalBests();
 
                         TreeSet<PlayerTime> leaderboardTimes = parkourPlugin.getLeaderboard();
 

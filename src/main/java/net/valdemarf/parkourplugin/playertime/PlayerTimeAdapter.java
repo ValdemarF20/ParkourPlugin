@@ -51,7 +51,7 @@ public final class PlayerTimeAdapter extends TypeAdapter<PlayerTime> {
             return null;
         }
 
-        playerTime = new PlayerTime(ParkourPlugin.getInstance(), duration, UUID.fromString(uuidString));
+        playerTime = new PlayerTime(duration, UUID.fromString(uuidString));
 
         in.endObject();
         return playerTime;
