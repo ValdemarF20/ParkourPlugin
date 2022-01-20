@@ -74,7 +74,6 @@ public final record MoveListener(ParkourPlugin parkourPlugin, ParkourManager par
                         PlayerTime newTime = new PlayerTime(duration, player.getUniqueId());
 
                         TreeSet<PlayerTime> personalBests = (TreeSet<PlayerTime>) parkourPlugin.getPlayerTimeManager().getPersonalBests();
-
                         TreeSet<PlayerTime> leaderboardTimes = (TreeSet<PlayerTime>) parkourPlugin.getPlayerTimeManager().getLeaderboardTimes();
 
                         // Update personal best if the player hasn't tried before

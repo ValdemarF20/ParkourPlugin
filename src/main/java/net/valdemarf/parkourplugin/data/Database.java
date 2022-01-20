@@ -15,11 +15,14 @@ import net.valdemarf.parkourplugin.playertime.PlayerTime;
 import net.valdemarf.parkourplugin.playertime.PlayerTimeAdapter;
 import net.valdemarf.parkourplugin.playertime.PlayerTimeManager;
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public final class Database {
 
@@ -30,6 +33,7 @@ public final class Database {
 
     public static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
     public static Gson GSON = createGsonInstance();
+    private static final Logger LOGGER = LoggerFactory.getLogger(Database.class);
 
     public Database(ConfigManager config, PlayerTimeManager playerTimeManager) {
         this.playerTimeManager = playerTimeManager;
@@ -169,5 +173,49 @@ public final class Database {
         builder.registerTypeAdapter(PlayerTime.class, new PlayerTimeAdapter());
         builder.setPrettyPrinting();
         return builder.create();
+    }
+
+    /**
+     * Makes sure that every task is stopped before closing the JVM
+     */
+    public void shutdown() {
+        Database.EXECUTOR.shutdown(); // Stops new tasks from being scheduled to the executor.
+
+        try {
+            if (!Database.EXECUTOR.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for existing tasks to terminate.
+                Database.EXECUTOR.shutdownNow(); // Cancel currently executing tasks that didn't finish in the time.
+
+                if (!Database.EXECUTOR.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for tasks to respond to cancellation.
+                    LOGGER.error("Pool failed to terminate");
+                }
+            }
+        } catch (InterruptedException e) {
+            Database.EXECUTOR.shutdownNow(); // Cancel currently executing tasks if interrupted.
+            Thread.currentThread().interrupt(); // Preserve interrupt status.
+        }
+    }
+
+    /**
+     * Serializes the data synchronized to avoid running task after server has stopped
+     */
+    public void saveSync() {
+        for (PlayerTime playerTime : playerTimeManager.getLeaderboardTimes()) {
+            Document document = Document.parse(toJson(playerTime));
+
+            CompletableFuture.runAsync(() -> getLeaderboardCollection().
+                            replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
+                    Database.EXECUTOR);
+        }
+
+        // Updates the personal bests
+        for (PlayerTime playerTime : playerTimeManager.getPersonalBests()) {
+            Document document = Document.parse(toJson(playerTime));
+
+            CompletableFuture.runAsync(() -> getPersonalBestCollection().
+                            replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
+                    Database.EXECUTOR);
+        }
+
+        shutdown();
     }
 }

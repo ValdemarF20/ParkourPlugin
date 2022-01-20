@@ -1,22 +1,16 @@
 package net.valdemarf.parkourplugin;
 
 import co.aikar.commands.PaperCommandManager;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.ReplaceOptions;
 import net.valdemarf.parkourplugin.commands.Parkour;
 import net.valdemarf.parkourplugin.commands.Testing;
 import net.valdemarf.parkourplugin.data.Database;
 import net.valdemarf.parkourplugin.listeners.JoinLeaveListener;
 import net.valdemarf.parkourplugin.listeners.MoveListener;
 import net.valdemarf.parkourplugin.managers.*;
-import net.valdemarf.parkourplugin.playertime.PlayerTime;
 import net.valdemarf.parkourplugin.playertime.PlayerTimeManager;
-import org.bson.Document;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.*;
 
 public final class ParkourPlugin extends JavaPlugin {
 
@@ -35,11 +29,6 @@ public final class ParkourPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         LOGGER.info("Parkour Plugin has been enabled!");
-
-        // Register objects
-        // Bootstrapping process because it will go through and create the objects without external input
-
-        //TODO: Sort side effect objects
 
         // Side effect free objects:
         checkpointManager = new CheckpointManager(this);
@@ -73,37 +62,7 @@ public final class ParkourPlugin extends JavaPlugin {
         // Both loops need to run sync to avoid running it after the server has stopped
 
         // Updates the top 5 times in the database
-        for (PlayerTime playerTime : playerTimeManager.getLeaderboardTimes()) {
-            Document document = Document.parse(database.toJson(playerTime));
-
-            CompletableFuture.runAsync(() -> database.getLeaderboardCollection().
-                    replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
-                    Database.EXECUTOR);
-        }
-
-        // Updates the personal bests
-        for (PlayerTime playerTime : playerTimeManager.getPersonalBests()) {
-            Document document = Document.parse(database.toJson(playerTime));
-
-            CompletableFuture.runAsync(() -> database.getPersonalBestCollection().
-                    replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
-                    Database.EXECUTOR);
-        }
-
-        Database.EXECUTOR.shutdown(); // Stops new tasks from being scheduled to the executor.
-
-        try {
-            if (!Database.EXECUTOR.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for existing tasks to terminate.
-                Database.EXECUTOR.shutdownNow(); // Cancel currently executing tasks that didn't finish in the time.
-
-                if (!Database.EXECUTOR.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for tasks to respond to cancellation.
-                    LOGGER.error("Pool failed to terminate");
-                }
-            }
-        } catch (InterruptedException e) {
-            Database.EXECUTOR.shutdownNow(); // Cancel currently executing tasks if interrupted.
-            Thread.currentThread().interrupt(); // Preserve interrupt status.
-        }
+        database.saveSync();
     }
 
     public CheckpointManager getCheckpointManager() {
