@@ -75,6 +75,7 @@ public final record MoveListener(ParkourPlugin parkourPlugin, ParkourManager par
                                 Formatter.formatTime(duration.toMillis()));
 
                         PlayerTime newTime = new PlayerTime(
+                                parkourPlugin,
                                 duration,
                                 player.getUniqueId());
 

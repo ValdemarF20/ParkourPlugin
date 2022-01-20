@@ -73,8 +73,8 @@ public final class Testing extends BaseCommand {
 
     @Subcommand("save")
     public void onSave(Player player) {
-        parkourPlugin.getPlayerTimeManager().serializeLeaderboard();
-        parkourPlugin.getPlayerTimeManager().serializePersonalBests();
+        parkourPlugin.getDatabase().serializeLeaderboards();
+        parkourPlugin.getDatabase().serializePersonalBests();
         player.sendMessage("Server has been saved!");
         LOGGER.warn("Server has been saved!");
     }
@@ -84,7 +84,7 @@ public final class Testing extends BaseCommand {
         player.sendMessage("PlayerTimes has been deserialized");
 
         // Deserialize player times to get the java objects instead of json
-        parkourPlugin.getPlayerTimeManager().deserializeLeaderboard();
-        parkourPlugin.getPlayerTimeManager().deserializePersonalBests();
+        parkourPlugin.getDatabase().deserializeLeaderboard();
+        parkourPlugin.getDatabase().deserializePersonalBests();
     }
 }

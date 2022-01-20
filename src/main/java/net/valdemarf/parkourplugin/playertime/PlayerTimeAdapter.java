@@ -3,6 +3,7 @@ package net.valdemarf.parkourplugin.playertime;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import net.valdemarf.parkourplugin.ParkourPlugin;
 import org.bukkit.Bukkit;
 
 import java.io.IOException;
@@ -50,7 +51,7 @@ public final class PlayerTimeAdapter extends TypeAdapter<PlayerTime> {
             return null;
         }
 
-        playerTime = new PlayerTime(duration, UUID.fromString(uuidString));
+        playerTime = new PlayerTime(ParkourPlugin.getInstance(), duration, UUID.fromString(uuidString));
 
         in.endObject();
         return playerTime;

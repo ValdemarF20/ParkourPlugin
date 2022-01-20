@@ -68,16 +68,16 @@ public final class ParkourPlugin extends JavaPlugin {
         // Register objects
         ConfigManager configManager = new ConfigManager(this);
         configManager.instantiate();
-        database = new Database(configManager);
         playerTimeManager = new PlayerTimeManager(this);
+        database = new Database(configManager, playerTimeManager);
 
         checkpointManager = new CheckpointManager(this);
         PaperCommandManager manager = new PaperCommandManager(this);
         scoreboardManager = new ScoreboardManager(this);
         parkourManager = new ParkourManager(scoreboardManager);
 
-        playerTimeManager.deserializeLeaderboard();
-        playerTimeManager.deserializePersonalBests();
+        database.deserializeLeaderboard();
+        database.deserializePersonalBests();
 
         // Commands
         manager.registerCommand(new Parkour(this));
@@ -113,15 +113,16 @@ public final class ParkourPlugin extends JavaPlugin {
 
         // Updates the top 5 times in the database
         for (PlayerTime playerTime : leaderboard) {
-            Document document = Document.parse(playerTime.toJson());
+            Document document = Document.parse(database.toJson(playerTime));
 
-            ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().
-                    replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true));
+            CompletableFuture.runAsync(() -> ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().
+                            replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
+                    ParkourPlugin.getInstance().getExecutor());
         }
 
         // Updates the personal bests
         for (PlayerTime playerTime : personalBests) {
-            Document document = Document.parse(playerTime.toJson());
+            Document document = Document.parse(database.toJson(playerTime));
 
             ParkourPlugin.getInstance().getDatabase().getPersonalBestCollection().
                     replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true));
