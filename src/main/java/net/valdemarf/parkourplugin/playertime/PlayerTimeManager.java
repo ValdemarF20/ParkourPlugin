@@ -1,19 +1,12 @@
 package net.valdemarf.parkourplugin.playertime;
 
-import net.valdemarf.parkourplugin.ParkourPlugin;
-
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
 public final class PlayerTimeManager {
-    private final TreeSet<PlayerTime> leaderboardTimes;
-    private final TreeSet<PlayerTime> personalBests;
-
-    public PlayerTimeManager(ParkourPlugin parkourPlugin) {
-        this.leaderboardTimes = parkourPlugin.getLeaderboard();
-        this.personalBests = (TreeSet<PlayerTime>) parkourPlugin.getPlayerTimeManager().getPersonalBests();
-    }
+    private final TreeSet<PlayerTime> leaderboardTimes = new TreeSet<>();
+    private final TreeSet<PlayerTime> personalBests = new TreeSet<>();
 
     public String getPersonalBest(UUID uuid) {
         for (PlayerTime playerTime : personalBests) {

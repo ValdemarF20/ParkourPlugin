@@ -1,17 +1,61 @@
 package net.valdemarf.parkourplugin.managers;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import net.valdemarf.parkourplugin.ParkourPlugin;
+import net.valdemarf.parkourplugin.data.Data;
+import net.valdemarf.parkourplugin.data.Database;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
 import java.util.*;
 
 public final class CheckpointManager {
     private final ParkourPlugin parkourPlugin;
-    Map<Player, Location> playerCheckpoints = new HashMap<>();
+    private final List<Location> checkpointLocations = new ArrayList<>();
+    private final Map<Player, Location> playerCheckpoints = new HashMap<>();
+    private static final Logger LOGGER = LoggerFactory.getLogger(ParkourPlugin.class);
 
     public CheckpointManager(ParkourPlugin parkourPlugin) {
         this.parkourPlugin = parkourPlugin;
+    }
+
+    /**
+     * Sets up the data folder for parkour checkpoints if it's missing.
+     */
+    public void setupDataFolder() {
+        try {
+            parkourPlugin.getDataFolder().mkdir();
+            File file = new File(parkourPlugin.getDataFolder(), "checkpoints.json");
+
+            if (file.createNewFile()) {
+                LOGGER.info("Data File for Parkour has been generated");
+            }
+
+            Reader reader = new FileReader(file);
+            JsonArray parser = JsonParser.parseReader(reader).getAsJsonObject().get("checkpointsData").getAsJsonArray();
+
+            List<Data> dataList = new ArrayList<>();
+
+            for (JsonElement element : parser) {
+                dataList.add(Database.GSON.fromJson(element, Data.class));
+            }
+
+            for (Data data : dataList) {
+                checkpointLocations.add(data.bukkitLocation());
+            }
+
+
+        } catch(IOException e) {
+            LOGGER.error("DataFolder could not be created", e);
+        }
     }
 
     /**
@@ -21,7 +65,7 @@ public final class CheckpointManager {
     public void addCheckpoint(Player player) {
         // Adds the player if it's the first time using the parkour. (Since server restart)
         if(!playerCheckpoints.containsKey(player)) { // Player hasn't played since restart
-            playerCheckpoints.put(player, parkourPlugin.getCheckpointLocations().get(0));
+            playerCheckpoints.put(player, getCheckpointLocations().get(0));
         } else { // Increments with one - since player has played since restart
             playerCheckpoints.replace(player, getNextPlayerCheckpoint(player));
         }
@@ -34,7 +78,7 @@ public final class CheckpointManager {
      * @return True if checkpoint was successfully set and false if not
      */
     public boolean setCheckpoint(Player player, int index) {
-        List<Location> locations = parkourPlugin.getCheckpointLocations();
+        List<Location> locations = getCheckpointLocations();
 
         // Adds the player if it's the first time using the parkour. (Since server restart)
         if(!playerCheckpoints.containsKey(player)) { // Player hasn't played since restart
@@ -60,7 +104,7 @@ public final class CheckpointManager {
         if(playerCheckpoints.containsKey(player)) {
             return playerCheckpoints.get(player);
         }
-        return parkourPlugin.getCheckpointLocations().get(0);
+        return getCheckpointLocations().get(0);
     }
 
     /**
@@ -69,7 +113,7 @@ public final class CheckpointManager {
      * @return A location based on the players next checkpoint
      */
     public Location getNextPlayerCheckpoint(Player player) {
-        List<Location> checkpointLocations = parkourPlugin.getCheckpointLocations();
+        List<Location> checkpointLocations = getCheckpointLocations();
 
         boolean checker = false;
         for (Location location : checkpointLocations) {
@@ -96,6 +140,10 @@ public final class CheckpointManager {
      * @return The index based on given checkpoint / location
      */
     public int getIndex(Location location) {
-        return parkourPlugin.getCheckpointLocations().indexOf(location);
+        return getCheckpointLocations().indexOf(location);
+    }
+
+    public List<Location> getCheckpointLocations() {
+        return checkpointLocations;
     }
 }

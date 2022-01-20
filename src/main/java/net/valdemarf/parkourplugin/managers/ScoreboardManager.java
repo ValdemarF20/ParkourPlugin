@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Statistic;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 
@@ -24,7 +25,7 @@ public final class ScoreboardManager {
 
     //TODO: Only run this whenever someone beats top 5 or personal best
     public void updateBoard(FastBoard board) {
-        TreeSet<PlayerTime> times = parkourPlugin.getLeaderboard();
+        TreeSet<PlayerTime> times = (TreeSet<PlayerTime>) parkourPlugin.getPlayerTimeManager().getLeaderboardTimes();
 
         board.updateTitle(ChatColor.RED + "Parkour");
         board.updateLines(
@@ -73,12 +74,29 @@ public final class ScoreboardManager {
     /**
      * Update scoreboard for every player inside the parkour region
      */
-    public void updateAllScoreboards() {
+    public void updateParkourScoreboards() {
         for (Player playerLoop : Bukkit.getOnlinePlayers()) {
             if(parkourPlugin.getParkourManager().getParkourPlayers().contains(playerLoop.getUniqueId())) {
-                Bukkit.getLogger().warning("Board has been updated! - MoveListener");
                 parkourPlugin.getScoreboardManager().updateBoard(parkourPlugin.getScoreboardManager().getBoard(playerLoop));
             }
         }
+    }
+
+    /**
+     * Updates the default scoreboards based on whether they are inside the parkour region or not
+     * Will run every second
+     */
+    public void updateDefaultScoreboards() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    // Only update scoreboard if player is not in parkour
+                    if(!parkourPlugin.getParkourManager().getParkourPlayers().contains(player.getUniqueId())) {
+                        updateDefaultBoard((getBoard(player)));
+                    }
+                }
+            }
+        }.runTaskTimer(parkourPlugin, 1, 20);
     }
 }

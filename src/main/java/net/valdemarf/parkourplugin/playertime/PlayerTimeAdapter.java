@@ -3,7 +3,6 @@ package net.valdemarf.parkourplugin.playertime;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-import net.valdemarf.parkourplugin.ParkourPlugin;
 import org.bukkit.Bukkit;
 
 import java.io.IOException;

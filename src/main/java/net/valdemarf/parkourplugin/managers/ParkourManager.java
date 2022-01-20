@@ -1,7 +1,15 @@
 package net.valdemarf.parkourplugin.managers;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.managers.RegionManager;
+import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import com.sk89q.worldguard.protection.regions.RegionContainer;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.*;
@@ -10,6 +18,8 @@ public final class ParkourManager {
     private final Set<UUID> parkourPlayers = new HashSet<>();
     private final ScoreboardManager scoreboardManager;
     private final Map<UUID, Instant> playerTimers = new HashMap<>();
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ParkourManager.class);
 
     public ParkourManager(ScoreboardManager scoreboardManager) {
         this.scoreboardManager = scoreboardManager;
@@ -51,5 +61,29 @@ public final class ParkourManager {
      */
     public Map<UUID, Instant> getPlayerTimers() {
         return playerTimers;
+    }
+
+    /**
+     * Checks if a given player is within the parkour region
+     * @param player The player that is being checked
+     * @return True if the player is within the region and false if not
+     */
+    public boolean playerIsWithinRegion(Player player) {
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+        RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+
+        if (regions == null) {
+            LOGGER.info("regions is null");
+            return false;
+        }
+
+        Location playerLocation = player.getLocation();
+        ProtectedRegion parkourRegion = regions.getRegion("parkour");
+        if (parkourRegion == null) {
+            LOGGER.info("parkour region is null");
+            return false;
+        }
+
+        return parkourRegion.contains(playerLocation.getBlockX(), playerLocation.getBlockY(), playerLocation.getBlockZ());
     }
 }

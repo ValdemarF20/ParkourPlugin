@@ -2,6 +2,7 @@ package net.valdemarf.parkourplugin.listeners;
 
 import fr.mrmicky.fastboard.FastBoard;
 import net.valdemarf.parkourplugin.ParkourPlugin;
+import net.valdemarf.parkourplugin.managers.ParkourManager;
 import net.valdemarf.parkourplugin.managers.ScoreboardManager;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -11,11 +12,11 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 public class JoinLeaveListener implements Listener {
     private final ScoreboardManager scoreboardManager;
-    private final ParkourPlugin parkourPlugin;
+    private final ParkourManager parkourManager;
 
-    public JoinLeaveListener(ParkourPlugin parkourPlugin) {
-        this.parkourPlugin = parkourPlugin;
-        this.scoreboardManager = parkourPlugin.getScoreboardManager();
+    public JoinLeaveListener(ParkourManager parkourManager, ScoreboardManager scoreboardManager) {
+        this.parkourManager = parkourManager;
+        this.scoreboardManager = scoreboardManager;
     }
 
     @EventHandler
@@ -38,7 +39,7 @@ public class JoinLeaveListener implements Listener {
             board.delete();
         }
 
-        parkourPlugin.getParkourManager().getPlayerTimers().remove(player.getUniqueId());
-        parkourPlugin.getParkourManager().removeActivePlayer(player.getUniqueId());
+        parkourManager.getPlayerTimers().remove(player.getUniqueId());
+        parkourManager.removeActivePlayer(player.getUniqueId());
     }
 }

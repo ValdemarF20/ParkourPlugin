@@ -5,8 +5,6 @@ import net.valdemarf.parkourplugin.ParkourPlugin;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.List;
-
 public final class ConfigManager {
     private final ParkourPlugin parkourPlugin;
     public FileConfiguration config;

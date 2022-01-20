@@ -8,6 +8,7 @@ import net.valdemarf.parkourplugin.playertime.PlayerTime;
 import net.valdemarf.parkourplugin.managers.CheckpointManager;
 import net.valdemarf.parkourplugin.ParkourPlugin;
 import net.valdemarf.parkourplugin.managers.ParkourManager;
+import net.valdemarf.parkourplugin.playertime.PlayerTimeManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -20,12 +21,14 @@ import java.util.UUID;
 public final class Testing extends BaseCommand {
     private final ParkourPlugin parkourPlugin;
     private final ParkourManager parkourManager;
+    private final PlayerTimeManager playerTimeManager;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Testing.class);
 
     public Testing(ParkourPlugin parkourPlugin, ParkourManager parkourManager) {
         this.parkourPlugin = parkourPlugin;
         this.parkourManager = parkourManager;
+        this.playerTimeManager = parkourPlugin.getPlayerTimeManager();
     }
 
     @Default
@@ -65,7 +68,7 @@ public final class Testing extends BaseCommand {
         LOGGER.warn("All times stored in TreeSet:");
 
         int counter = 1;
-        for (PlayerTime time : parkourPlugin.getLeaderboard()) {
+        for (PlayerTime time : playerTimeManager.getLeaderboardTimes()) {
             LOGGER.warn(counter + time.getDuration().toString());
             counter++;
         }

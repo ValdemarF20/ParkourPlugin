@@ -1,5 +1,7 @@
 package net.valdemarf.parkourplugin.data;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.mongodb.ConnectionString;
 import com.mongodb.client.MongoClient;
 import com.mongodb.MongoClientSettings;
@@ -8,9 +10,10 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOptions;
-import net.valdemarf.parkourplugin.ParkourPlugin;
 import net.valdemarf.parkourplugin.managers.ConfigManager;
 import net.valdemarf.parkourplugin.playertime.PlayerTime;
+import net.valdemarf.parkourplugin.playertime.PlayerTimeAdapter;
+import net.valdemarf.parkourplugin.playertime.PlayerTimeManager;
 import org.bson.Document;
 
 import java.util.Set;
@@ -23,27 +26,37 @@ public final class Database {
     private final MongoCollection<Document> leaderboardCollection;
     private final MongoCollection<Document> personalBestCollection;
 
-    private final ParkourPlugin parkourPlugin;
+    private final PlayerTimeManager playerTimeManager;
 
     public static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
+    public static Gson GSON = createGsonInstance();
 
-    public Database(ConfigManager config, ParkourPlugin parkourPlugin) {
-        this.parkourPlugin = parkourPlugin;
+    public Database(ConfigManager config, PlayerTimeManager playerTimeManager) {
+        this.playerTimeManager = playerTimeManager;
 
+        MongoDatabase database = initializeDatabase(config);
+
+        this.leaderboardCollection = database.getCollection("leaderboardtimes");
+        this.personalBestCollection = database.getCollection("personalbesttimes");
+    }
+
+    /**
+     * Initializes the database based on values from config.yml
+     * @param config Config.yml file containing connection values
+     * @return The MongoDatabase that is being connected to
+     */
+    private MongoDatabase initializeDatabase(ConfigManager config) {
         ConnectionString connectionString = new ConnectionString(
                 "mongodb+srv://" +
-                config.getString("username") + ":" +
-                config.getString("password") + "@cluster0.lwu2m.mongodb.net/" +
-                config.getString("databaseName") + "?retryWrites=true&w=majority");
+                        config.getString("username") + ":" +
+                        config.getString("password") + "@cluster0.lwu2m.mongodb.net/" +
+                        config.getString("databaseName") + "?retryWrites=true&w=majority");
 
         MongoClientSettings settings = MongoClientSettings.builder()
                 .applyConnectionString(connectionString)
                 .build();
         final MongoClient client = MongoClients.create(settings);
-        final MongoDatabase database = client.getDatabase("parkourplugin");
-
-        this.leaderboardCollection = database.getCollection("leaderboardtimes");
-        this.personalBestCollection = database.getCollection("personalbesttimes");
+        return client.getDatabase("parkourplugin");
     }
 
 
@@ -56,13 +69,13 @@ public final class Database {
     }
 
     public String toJson(PlayerTime playerTime) {
-        return ParkourPlugin.GSON.toJson(playerTime);
+        return GSON.toJson(playerTime);
     }
 
     public void serializeLeaderboard(PlayerTime playerTime) {
         Document document = Document.parse(toJson(playerTime));
 
-        CompletableFuture.runAsync(() -> parkourPlugin.getDatabase().getLeaderboardCollection().
+        CompletableFuture.runAsync(() -> getLeaderboardCollection().
                         replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
                 EXECUTOR);
     }
@@ -70,29 +83,29 @@ public final class Database {
     public void serializePersonalBest(PlayerTime playerTime) {
         Document document = Document.parse(toJson(playerTime));
 
-        CompletableFuture.runAsync(() -> parkourPlugin.getDatabase().getPersonalBestCollection().
+        CompletableFuture.runAsync(() -> getPersonalBestCollection().
                 replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
                 EXECUTOR);
     }
 
     public void serializePersonalBests() {
-        for (PlayerTime playerTime : parkourPlugin.getPlayerTimeManager().getPersonalBests()) {
+        for (PlayerTime playerTime : playerTimeManager.getPersonalBests()) {
             serializePersonalBest(playerTime);
         }
     }
 
     public void serializeLeaderboards() {
-        for (PlayerTime playerTime : parkourPlugin.getPlayerTimeManager().getPersonalBests()) {
+        for (PlayerTime playerTime : playerTimeManager.getPersonalBests()) {
             serializeLeaderboard(playerTime);
         }
     }
 
     public void deserializeLeaderboard() {
-        Set<PlayerTime> leaderboardTimes = parkourPlugin.getPlayerTimeManager().getLeaderboardTimes();
+        Set<PlayerTime> leaderboardTimes = playerTimeManager.getLeaderboardTimes();
 
         // Deserializing - getting an object from json in the database
-        for (Document playerTimeDocument : parkourPlugin.getDatabase().getLeaderboardCollection().find()) {
-            PlayerTime dbPlayerTime = ParkourPlugin.GSON.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
+        for (Document playerTimeDocument : getLeaderboardCollection().find()) {
+            PlayerTime dbPlayerTime = GSON.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
 
             if (leaderboardTimes.isEmpty()) {
                 leaderboardTimes.add(dbPlayerTime);
@@ -121,11 +134,11 @@ public final class Database {
      * local time is faster that the time from database
      */
     public void deserializePersonalBests() {
-        Set<PlayerTime> personalBests = parkourPlugin.getPlayerTimeManager().getPersonalBests();
+        Set<PlayerTime> personalBests = playerTimeManager.getPersonalBests();
 
         // Deserializing - getting an object from json in the database
-        for (Document playerTimeDocument : parkourPlugin.getDatabase().getPersonalBestCollection().find()) {
-            PlayerTime dbPlayerTime = ParkourPlugin.GSON.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
+        for (Document playerTimeDocument : getPersonalBestCollection().find()) {
+            PlayerTime dbPlayerTime = GSON.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
 
             if(personalBests.isEmpty()) {
                 personalBests.add(dbPlayerTime);
@@ -145,5 +158,16 @@ public final class Database {
                 }
             }
         }
+    }
+
+    /**
+     *
+     * @return the instance of gson that should be used everywhere in the plugin
+     */
+    public static Gson createGsonInstance() {
+        GsonBuilder builder = new GsonBuilder();
+        builder.registerTypeAdapter(PlayerTime.class, new PlayerTimeAdapter());
+        builder.setPrettyPrinting();
+        return builder.create();
     }
 }
