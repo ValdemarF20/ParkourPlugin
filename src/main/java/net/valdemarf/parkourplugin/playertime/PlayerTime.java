@@ -5,20 +5,13 @@ import com.mongodb.client.model.ReplaceOptions;
 import net.valdemarf.parkourplugin.Formatter;
 import net.valdemarf.parkourplugin.ParkourPlugin;
 import org.bson.Document;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
-public class PlayerTime implements Comparable<PlayerTime> {
-    private final Duration duration;
-    private final UUID uuid;
-
-    public PlayerTime(Duration bestTime, UUID uuid) {
-        this.duration = bestTime;
-        this.uuid = uuid;
-    }
+public final record PlayerTime(Duration duration, UUID uuid) implements Comparable<PlayerTime> {
 
     public Duration getDuration() {
         return duration;
@@ -34,48 +27,24 @@ public class PlayerTime implements Comparable<PlayerTime> {
     }
 
     public String toJson() {
-        PlayerTimeManager playerTimeManager = ParkourPlugin.getInstance().getPlayerTimeManager();
-        return playerTimeManager.getGsonBuilder().toJson(this);
+        return ParkourPlugin.GSON.toJson(this);
     }
 
 
     public void serializeLeaderboard() {
         Document document = Document.parse(toJson());
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().
-                        replaceOne(Filters.eq("_id", uuid), document, new ReplaceOptions().upsert(true));
-            }
-        }.runTaskAsynchronously(ParkourPlugin.getInstance());
+        CompletableFuture.runAsync(() -> ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().
+                replaceOne(Filters.eq("_id", uuid), document, new ReplaceOptions().upsert(true)),
+                ParkourPlugin.getInstance().getExecutor());
     }
 
-    public void serializeLeaderboardSync() {
+    public void serializePersonalBest() {
         Document document = Document.parse(toJson());
 
-        ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().
-                replaceOne(Filters.eq("_id", uuid), document, new ReplaceOptions().upsert(true));
-
-    }
-
-    public void serializePersonalBests() {
-        Document document = Document.parse(toJson());
-
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                ParkourPlugin.getInstance().getDatabase().getPersonalBestCollection().
-                        replaceOne(Filters.eq("_id", uuid), document, new ReplaceOptions().upsert(true));
-            }
-        }.runTaskAsynchronously(ParkourPlugin.getInstance());
-    }
-
-    public void serializePersonalBestsSync() {
-        Document document = Document.parse(toJson());
-
-        ParkourPlugin.getInstance().getDatabase().getPersonalBestCollection().
-                replaceOne(Filters.eq("_id", uuid), document, new ReplaceOptions().upsert(true));
+        CompletableFuture.runAsync(() -> ParkourPlugin.getInstance().getDatabase().getPersonalBestCollection().
+                replaceOne(Filters.eq("_id", uuid), document, new ReplaceOptions().upsert(true)),
+                ParkourPlugin.getInstance().getExecutor());
     }
 
     public String getBest() {
@@ -83,6 +52,6 @@ public class PlayerTime implements Comparable<PlayerTime> {
     }
 
     public String toString() {
-        return "PlayerTime[ name = " + uuid + ", time: "+ duration.toMillis() + "]";
+        return "PlayerTime[ name = " + uuid + ", time: " + duration.toMillis() + "]";
     }
 }

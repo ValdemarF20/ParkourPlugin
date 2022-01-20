@@ -10,10 +10,7 @@ import net.valdemarf.parkourplugin.ParkourPlugin;
 import net.valdemarf.parkourplugin.playertime.PlayerTime;
 import net.valdemarf.parkourplugin.managers.CheckpointManager;
 import net.valdemarf.parkourplugin.managers.ParkourManager;
-import org.bukkit.ChatColor;
-import org.bukkit.Color;
-import org.bukkit.FireworkEffect;
-import org.bukkit.Location;
+import org.bukkit.*;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
@@ -26,21 +23,12 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.TreeSet;
-import java.util.concurrent.TimeUnit;
 
-public class MoveListener implements Listener {
-    private final ParkourPlugin parkourPlugin;
-    private final ParkourManager parkourManager;
+public final record MoveListener(ParkourPlugin parkourPlugin, ParkourManager parkourManager) implements Listener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MoveListener.class);
-
-    public MoveListener(ParkourPlugin parkourPlugin, ParkourManager parkourManager) {
-        this.parkourPlugin = parkourPlugin;
-        this.parkourManager = parkourManager;
-    }
 
     @EventHandler
     public void onMove(PlayerMoveEvent e) {
@@ -48,8 +36,8 @@ public class MoveListener implements Listener {
         Location loc = player.getLocation();
 
         // Handle parkour region
-        if(playerIsWithinRegion(player)) {
-            if(!parkourManager.getActivePlayers().contains(player.getUniqueId())) {
+        if (playerIsWithinRegion(player)) {
+            if (!parkourManager.getParkourPlayers().contains(player.getUniqueId())) {
                 parkourManager.addActivePlayer(player.getUniqueId());
             }
 
@@ -59,22 +47,27 @@ public class MoveListener implements Listener {
             CheckpointManager checkpointManager = parkourPlugin.getCheckpointManager();
             List<Location> checkpointLocations = parkourPlugin.getCheckpointLocations();
 
-            if(newLoc.equals(parkourPlugin.getCheckpointLocations().get(0))) {
+            // Start the parkour timer
+            if (newLoc.equals(parkourPlugin.getCheckpointLocations().get(0))) {
                 parkourManager.getPlayerTimers().put(player.getUniqueId(), Instant.now());
             }
 
             // Player reaches a new checkpoint
-            if(newLoc.equals(checkpointManager.getNextPlayerCheckpoint(player))) {
+            if (newLoc.equals(checkpointManager.getNextPlayerCheckpoint(player))) {
                 checkpointManager.addCheckpoint(player);
 
                 Location lastCheckpoint = checkpointLocations.get(checkpointLocations.size() - 1);
 
                 // Player reaches the end checkpoint
-                if(checkpointManager.getPlayerCheckpoint(player).equals(lastCheckpoint)) {
-                    if(!parkourPlugin.checker) {
+                if (checkpointManager.getPlayerCheckpoint(player).equals(lastCheckpoint)) {
+                    if (!parkourPlugin.checker) {
 
                         Instant instantStart = parkourManager.getPlayerTimers().get(player.getUniqueId());
                         Instant instantEnd = Instant.now();
+
+                        if(instantStart == null) {
+                            return;
+                        }
 
                         Duration duration = Duration.between(instantStart, instantEnd);
 
@@ -95,9 +88,9 @@ public class MoveListener implements Listener {
                         // Checking if the player has beaten the parkour before
                         boolean personalBestAlreadyCreated = false;
                         for (PlayerTime prevBest : personalBests) {
-                            if(prevBest.getUuid().equals(player.getUniqueId())) {
+                            if (prevBest.getUuid().equals(player.getUniqueId())) {
                                 // The player has beaten the parkour before
-                                if(newTime.compareTo(prevBest) < 0) {
+                                if (newTime.compareTo(prevBest) < 0) {
                                     // Personal best has been beaten
 
                                     personalBests.remove(prevBest);
@@ -107,6 +100,9 @@ public class MoveListener implements Listener {
                                     oldBest = prevBest;
 
                                     player.sendMessage(ChatColor.RED + "You've beaten your previous best time!");
+
+                                    // Update personal best on scoreboard
+                                    parkourPlugin.getScoreboardManager().updateBoard(parkourPlugin.getScoreboardManager().getBoard(player));
                                 } else {
                                     oldBest = newTime;
                                     personalBest = prevBest;
@@ -120,32 +116,37 @@ public class MoveListener implements Listener {
                         boolean playerIsInLeaderboard = false;
                         for (PlayerTime playerTime : leaderboardTimes) {
                             // Check if the player is already in the leaderboardTimes
-                            if(playerTime.getUuid().equals(newTime.getUuid())) {
+                            if (playerTime.getUuid().equals(newTime.getUuid())) {
                                 playerIsInLeaderboard = true;
                                 break;
                             }
                         }
 
                         // Player hasn't beaten the parkour before
-                        if(!personalBestAlreadyCreated) {
+                        if (!personalBestAlreadyCreated) {
                             personalBest = newTime;
                             oldBest = newTime;
                             personalBests.add(newTime);
+
+                            // Update personal best on scoreboard
+                            parkourPlugin.getScoreboardManager().updateBoard(parkourPlugin.getScoreboardManager().getBoard(player));
                         }
 
                         // Update personal if already on leaderboard and personal best has been beaten
-                        if(playerIsInLeaderboard && newTime.compareTo(oldBest) < 0) {
+                        if (playerIsInLeaderboard && newTime.compareTo(oldBest) < 0) {
                             leaderboardTimes.remove(oldBest);
                             leaderboardTimes.add(newTime);
-                        } else if(leaderboardTimes.size() < 5) {
-                            if(!playerIsInLeaderboard) { // Add if player is not on leaderboard and it's not full
-                                leaderboardTimes.add(newTime);
-                            }
-                        } else if(!leaderboardTimes.contains(personalBest) && personalBest.compareTo(leaderboardTimes.last()) < 0) { // Add if player beats the worst time on leaderboard
+                            parkourPlugin.getScoreboardManager().updateAllScoreboards();
+                        // Add if player is not on leaderboard and it's not full
+                        } else if (leaderboardTimes.size() < 5 && !playerIsInLeaderboard) {
+                            leaderboardTimes.add(newTime);
+                            parkourPlugin.getScoreboardManager().updateAllScoreboards();
+                        // Add if player beats the worst time on leaderboard
+                        } else if (!leaderboardTimes.contains(personalBest) && personalBest.compareTo(leaderboardTimes.last()) < 0) {
                             leaderboardTimes.pollLast();
                             leaderboardTimes.add(personalBest);
+                            parkourPlugin.getScoreboardManager().updateAllScoreboards();
                         }
-
 
                         checkpointManager.setCheckpoint(player, 0);
 
@@ -163,33 +164,35 @@ public class MoveListener implements Listener {
                     }
                 }
             }
-
+            parkourManager.getPlayerTimers().remove(player.getUniqueId());
         } else {
-            if(parkourManager.getActivePlayers().contains(player.getUniqueId())) {
+            if (parkourManager.getParkourPlayers().contains(player.getUniqueId())) {
                 parkourManager.removeActivePlayer(player.getUniqueId());
             }
         }
     }
 
+    /**
+     * Checks if a given player is within the parkour region
+     * @param player The player that is being checked
+     * @return True if the player is within the region and false if not
+     */
     public boolean playerIsWithinRegion(Player player) {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
 
-        if(regions == null) {
+        if (regions == null) {
             LOGGER.info("regions is null");
             return false;
         }
 
         Location playerLocation = player.getLocation();
         ProtectedRegion parkourRegion = regions.getRegion("parkour");
-        if(parkourRegion == null) {
+        if (parkourRegion == null) {
             LOGGER.info("parkour region is null");
             return false;
         }
 
-        if(parkourRegion.contains(playerLocation.getBlockX(), playerLocation.getBlockY(), playerLocation.getBlockZ())) {
-            return true;
-        }
-        return false;
+        return parkourRegion.contains(playerLocation.getBlockX(), playerLocation.getBlockY(), playerLocation.getBlockZ());
     }
 }

@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 import java.util.UUID;
 
 @CommandAlias("test|t")
-public class Testing extends BaseCommand {
+public final class Testing extends BaseCommand {
     private final ParkourPlugin parkourPlugin;
     private final ParkourManager parkourManager;
 
@@ -36,8 +36,8 @@ public class Testing extends BaseCommand {
         LOGGER.info("Latest checkpoint: " + latestCheckpoint.toString());
         LOGGER.info("Index: " + checkpointManager.getIndex(latestCheckpoint));
 
-        LOGGER.info("Amount of players in ActivePlayers list: " + parkourManager.getActivePlayers().size());
-        for (UUID uuid : parkourManager.getActivePlayers()) {
+        LOGGER.info("Amount of players in ActivePlayers list: " + parkourManager.getParkourPlayers().size());
+        for (UUID uuid : parkourManager.getParkourPlayers()) {
             Player uuidPlayer = Bukkit.getPlayer(uuid);
             if(uuidPlayer == null) {
                 continue;

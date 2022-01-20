@@ -1,18 +1,20 @@
 package net.valdemarf.parkourplugin;
 
 import co.aikar.commands.PaperCommandManager;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.ReplaceOptions;
 import net.valdemarf.parkourplugin.commands.Parkour;
 import net.valdemarf.parkourplugin.commands.Testing;
 import net.valdemarf.parkourplugin.data.Data;
 import net.valdemarf.parkourplugin.data.Database;
+import net.valdemarf.parkourplugin.listeners.JoinLeaveListener;
 import net.valdemarf.parkourplugin.listeners.MoveListener;
 import net.valdemarf.parkourplugin.managers.*;
 import net.valdemarf.parkourplugin.playertime.PlayerTime;
+import net.valdemarf.parkourplugin.playertime.PlayerTimeAdapter;
 import net.valdemarf.parkourplugin.playertime.PlayerTimeManager;
+import org.bson.Document;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -26,11 +28,11 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.*;
+import java.util.concurrent.*;
 
 public final class ParkourPlugin extends JavaPlugin {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ParkourPlugin.class);
-    private File file;
     private List<Data> dataList;
     private List<Location> checkpointLocations;
 
@@ -38,21 +40,23 @@ public final class ParkourPlugin extends JavaPlugin {
     private CheckpointManager checkpointManager;
     private ScoreboardManager scoreboardManager;
     private ParkourManager parkourManager;
-    private ConfigManager configManager;
     private Database database;
     private PlayerTimeManager playerTimeManager;
 
     private final TreeSet<PlayerTime> leaderboard = new TreeSet<>();
     private final TreeSet<PlayerTime> personalBests = new TreeSet<>();
 
-    public static Gson GSON = new Gson();
+    public static Gson GSON;
+    private static ParkourPlugin INSTANCE;
 
     public boolean checker = false;
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
     @Override
     public void onEnable() {
         LOGGER.info("Parkour Plugin has been enabled!");
         INSTANCE = this;
+        GSON = createGsonInstance();
 
         setupDataFolder();
 
@@ -61,9 +65,10 @@ public final class ParkourPlugin extends JavaPlugin {
             LOGGER.info(data.bukkitLocation().toString());
         }
 
-        configManager = new ConfigManager(this);
+        // Register objects
+        ConfigManager configManager = new ConfigManager(this);
         configManager.instantiate();
-        database = new Database(this, configManager);
+        database = new Database(configManager);
         playerTimeManager = new PlayerTimeManager(this);
 
         checkpointManager = new CheckpointManager(this);
@@ -80,19 +85,21 @@ public final class ParkourPlugin extends JavaPlugin {
 
         // Listeners
         this.getServer().getPluginManager().registerEvents(new MoveListener(this, parkourManager), this);
-        this.getServer().getPluginManager().registerEvents(scoreboardManager, this);
+        this.getServer().getPluginManager().registerEvents(new JoinLeaveListener(this), this);
 
         updateScoreboards();
     }
 
+    /**
+     * Updates the default scoreboards based on whether they are inside the parkour region or not
+     */
     private void updateScoreboards() {
         new BukkitRunnable() {
             @Override
             public void run() {
                 for (Player player : Bukkit.getOnlinePlayers()) {
-                    if(parkourManager.getActivePlayers().contains(player.getUniqueId())) {
-                        scoreboardManager.updateBoard(scoreboardManager.getBoard(player));
-                    } else {
+                    // Only update scoreboard if player is not in parkour
+                    if(!parkourManager.getParkourPlayers().contains(player.getUniqueId())) {
                         scoreboardManager.updateDefaultBoard((scoreboardManager.getBoard(player)));
                     }
                 }
@@ -102,23 +109,38 @@ public final class ParkourPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Both loops need to run sync to avoid running it after the server has stopped
+
         // Updates the top 5 times in the database
         for (PlayerTime playerTime : leaderboard) {
-            playerTime.serializeLeaderboardSync();
+            Document document = Document.parse(playerTime.toJson());
+
+            ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().
+                    replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true));
         }
 
         // Updates the personal bests
         for (PlayerTime playerTime : personalBests) {
-            playerTime.serializePersonalBestsSync();
-        }
-    }
+            Document document = Document.parse(playerTime.toJson());
 
-    /**
-     *
-     * @return File that contains coordinates for parkour checkpoints
-     */
-    public File getCheckpointFile() {
-        return file;
+            ParkourPlugin.getInstance().getDatabase().getPersonalBestCollection().
+                    replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true));
+        }
+
+        executor.shutdown(); // Stops new tasks from being scheduled to the executor.
+
+        try {
+            if (!executor.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for existing tasks to terminate.
+                executor.shutdownNow(); // Cancel currently executing tasks that didn't finish in the time.
+
+                if (!executor.awaitTermination(30, TimeUnit.SECONDS)) { // Wait for tasks to respond to cancellation.
+                    LOGGER.error("Pool failed to terminate");
+                }
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow(); // Cancel currently executing tasks if interrupted.
+            Thread.currentThread().interrupt(); // Preserve interrupt status.
+        }
     }
 
     /**
@@ -127,7 +149,7 @@ public final class ParkourPlugin extends JavaPlugin {
     public void setupDataFolder() {
         try {
             getDataFolder().mkdir();
-            file = new File(getDataFolder(), "checkpoints.json");
+            File file = new File(getDataFolder(), "checkpoints.json");
 
             if (file.createNewFile()) {
                 LOGGER.info("Data File for Parkour has been generated");
@@ -154,6 +176,17 @@ public final class ParkourPlugin extends JavaPlugin {
         }
     }
 
+    /**
+     *
+     * @return the instance of gson that should be used everywhere in the plugin
+     */
+    public Gson createGsonInstance() {
+        GsonBuilder builder = new GsonBuilder();
+        builder.registerTypeAdapter(PlayerTime.class, new PlayerTimeAdapter());
+        builder.setPrettyPrinting();
+        return builder.create();
+    }
+
     public List<Location> getCheckpointLocations() {
         return checkpointLocations;
     }
@@ -170,15 +203,9 @@ public final class ParkourPlugin extends JavaPlugin {
         return personalBests;
     }
 
-    public ConfigManager getConfigManager() {
-        return configManager;
-    }
-
     public Database getDatabase() {
         return database;
     }
-
-    private static ParkourPlugin INSTANCE;
 
     public static ParkourPlugin getInstance() {
         return INSTANCE;
@@ -190,5 +217,13 @@ public final class ParkourPlugin extends JavaPlugin {
 
     public PlayerTimeManager getPlayerTimeManager() {
         return playerTimeManager;
+    }
+
+    public ScoreboardManager getScoreboardManager() {
+        return scoreboardManager;
+    }
+
+    public Executor getExecutor() {
+        return executor;
     }
 }

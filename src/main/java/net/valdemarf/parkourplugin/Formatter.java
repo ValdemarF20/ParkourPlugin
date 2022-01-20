@@ -1,6 +1,6 @@
 package net.valdemarf.parkourplugin;
 
-public class Formatter {
+public final class Formatter {
                         /*
 int totalTime = 77523;
 Duration timeLeft = Duration.ofMillis(totalTime);

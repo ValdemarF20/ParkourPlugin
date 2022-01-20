@@ -6,8 +6,8 @@ import org.bukkit.entity.Player;
 import java.time.Instant;
 import java.util.*;
 
-public class ParkourManager {
-    private final List<UUID> activePlayers = new ArrayList<>();
+public final class ParkourManager {
+    private final Set<UUID> parkourPlayers = new HashSet<>();
     private final ScoreboardManager scoreboardManager;
     private final Map<UUID, Instant> playerTimers = new HashMap<>();
 
@@ -16,8 +16,12 @@ public class ParkourManager {
     }
 
 
+    /**
+     * Add player to HashSet to keep track of players within parkour region
+     * @param uuid The unique id of the player being added
+     */
     public void addActivePlayer(UUID uuid) {
-        activePlayers.add(uuid);
+        parkourPlayers.add(uuid);
         Player player = Bukkit.getPlayer(uuid);
         if(player == null) {
             return;
@@ -25,14 +29,26 @@ public class ParkourManager {
         scoreboardManager.updateBoard(scoreboardManager.getBoard(player));
     }
 
+    /**
+     * Remove a player from HashSet that keeps track of players within parkour region
+     * @param uuid The unique id of the player being removed
+     */
     public void removeActivePlayer(UUID uuid) {
-        activePlayers.remove(uuid);
+        parkourPlayers.remove(uuid);
     }
 
-    public List<UUID> getActivePlayers() {
-        return activePlayers;
+    /**
+     * Gets a set of players currently within the parkour region
+     * @return A set of unique IDs of the players within the parkour region
+     */
+    public Set<UUID> getParkourPlayers() {
+        return parkourPlayers;
     }
 
+    /**
+     * Will only contain players whose parkour timer has started
+     * @return The current map of players in a parkour
+     */
     public Map<UUID, Instant> getPlayerTimers() {
         return playerTimers;
     }

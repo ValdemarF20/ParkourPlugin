@@ -11,7 +11,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.logging.Level;
 
-public class PlayerTimeAdapter extends TypeAdapter<PlayerTime> {
+public final class PlayerTimeAdapter extends TypeAdapter<PlayerTime> {
 
     @Override
     public void write(JsonWriter out, PlayerTime value) throws IOException {

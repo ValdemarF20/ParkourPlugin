@@ -1,36 +1,29 @@
 package net.valdemarf.parkourplugin.playertime;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import net.valdemarf.parkourplugin.ParkourPlugin;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
-public class PlayerTimeManager {
+public final class PlayerTimeManager {
     private final TreeSet<PlayerTime> leaderboardTimes;
     private final TreeSet<PlayerTime> personalBests;
-    private final Gson gson;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerTimeManager.class);
 
     public PlayerTimeManager(ParkourPlugin parkourPlugin) {
         this.leaderboardTimes = parkourPlugin.getLeaderboard();
         this.personalBests = parkourPlugin.getPersonalBests();
-
-        GsonBuilder builder = new GsonBuilder();
-        builder.registerTypeAdapter(PlayerTime.class, new PlayerTimeAdapter());
-        builder.setPrettyPrinting();
-        gson = builder.create();
     }
 
     public void deserializeLeaderboard() {
         // Deserializing - getting an object from json in the database
         for (Document playerTimeDocument : ParkourPlugin.getInstance().getDatabase().getLeaderboardCollection().find()) {
-            PlayerTime dbPlayerTime = gson.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
+            PlayerTime dbPlayerTime = ParkourPlugin.GSON.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
 
             LOGGER.warn("A document has been found! - Leaderboard");
 
@@ -74,7 +67,7 @@ public class PlayerTimeManager {
     public void deserializePersonalBests() {
         // Deserializing - getting an object from json in the database
         for (Document playerTimeDocument : ParkourPlugin.getInstance().getDatabase().getPersonalBestCollection().find()) {
-            PlayerTime dbPlayerTime = gson.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
+            PlayerTime dbPlayerTime = ParkourPlugin.GSON.fromJson(playerTimeDocument.toJson(), PlayerTime.class);
 
             LOGGER.warn("A document has been found! - PersonalBests");
 
@@ -105,12 +98,8 @@ public class PlayerTimeManager {
 
     public void serializePersonalBests() {
         for (PlayerTime playerTime : personalBests) {
-            playerTime.serializePersonalBests();
+            playerTime.serializePersonalBest();
         }
-    }
-
-    public Gson getGsonBuilder() {
-        return gson;
     }
 
     public String getPersonalBest(UUID uuid) {
