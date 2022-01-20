@@ -20,7 +20,7 @@ public final class ParkourPlugin extends JavaPlugin {
     private CheckpointManager checkpointManager;
     private ScoreboardManager scoreboardManager;
     private ParkourManager parkourManager;
-    private Database database;
+    private Database databaseManager;
     private PlayerTimeManager playerTimeManager;
 
 
@@ -39,12 +39,12 @@ public final class ParkourPlugin extends JavaPlugin {
         PaperCommandManager manager = new PaperCommandManager(this);
 
         // None side effect free objects:
-        database = new Database(configManager, playerTimeManager);
+        databaseManager = new Database(configManager, playerTimeManager);
         scoreboardManager = new ScoreboardManager(this);
         parkourManager = new ParkourManager(scoreboardManager);
 
-        database.deserializeLeaderboard();
-        database.deserializePersonalBests();
+        databaseManager.deserializeLeaderboard();
+        databaseManager.deserializePersonalBests();
 
         // Commands
         manager.registerCommand(new Parkour(checkpointManager));
@@ -62,15 +62,15 @@ public final class ParkourPlugin extends JavaPlugin {
         // Both loops need to run sync to avoid running it after the server has stopped
 
         // Updates the top 5 times in the database
-        database.saveSync();
+        databaseManager.saveSync();
     }
 
     public CheckpointManager getCheckpointManager() {
         return checkpointManager;
     }
 
-    public Database getDatabase() {
-        return database;
+    public Database getDatabaseManager() {
+        return databaseManager;
     }
 
     public ParkourManager getParkourManager() {
