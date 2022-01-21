@@ -2,7 +2,6 @@ package net.valdemarf.parkourplugin;
 
 import co.aikar.commands.PaperCommandManager;
 import net.valdemarf.parkourplugin.commands.Parkour;
-import net.valdemarf.parkourplugin.commands.Testing;
 import net.valdemarf.parkourplugin.data.Database;
 import net.valdemarf.parkourplugin.listeners.JoinLeaveListener;
 import net.valdemarf.parkourplugin.listeners.MoveListener;
@@ -36,21 +35,20 @@ public final class ParkourPlugin extends JavaPlugin {
         configManager.instantiate();
         playerTimeManager = new PlayerTimeManager();
         PaperCommandManager manager = new PaperCommandManager(this);
+        scoreboardManager = new ScoreboardManager(this, playerTimeManager, scoreboardManager);
+        parkourManager = new ParkourManager(scoreboardManager);
 
         // None side effect free objects:
         databaseManager = new Database(configManager, playerTimeManager);
-        scoreboardManager = new ScoreboardManager(this);
-        parkourManager = new ParkourManager(scoreboardManager);
 
         databaseManager.deserializeLeaderboard();
         databaseManager.deserializePersonalBests();
 
         // Commands
         manager.registerCommand(new Parkour(checkpointManager));
-        manager.registerCommand(new Testing(this, parkourManager));
 
         // Listeners
-        this.getServer().getPluginManager().registerEvents(new MoveListener(this, parkourManager), this);
+        this.getServer().getPluginManager().registerEvents(new MoveListener(this, parkourManager, scoreboardManager), this);
         this.getServer().getPluginManager().registerEvents(new JoinLeaveListener(parkourManager, scoreboardManager, checkpointManager), this);
 
         scoreboardManager.updateDefaultScoreboards();
@@ -58,18 +56,19 @@ public final class ParkourPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // Both loops need to run sync to avoid running it after the server has stopped
-
         // Updates the top 5 times in the database
         databaseManager.saveSync();
     }
 
+    // Note on why the main instance should be avoided:
+    // - It gets really hard to see what our classes really depend on
+    // - It sometimes gets hard to reuse the code as that plugin instance always has to be passed
+    // - (Harder to unit test)
+    //
+    // So the getters should be avoided as much as possible (without making everything messy)
+
     public CheckpointManager getCheckpointManager() {
         return checkpointManager;
-    }
-
-    public Database getDatabaseManager() {
-        return databaseManager;
     }
 
     public ParkourManager getParkourManager() {
@@ -78,9 +77,5 @@ public final class ParkourPlugin extends JavaPlugin {
 
     public PlayerTimeManager getPlayerTimeManager() {
         return playerTimeManager;
-    }
-
-    public ScoreboardManager getScoreboardManager() {
-        return scoreboardManager;
     }
 }

@@ -2,6 +2,7 @@ package net.valdemarf.parkourplugin.listeners;
 
 import net.valdemarf.parkourplugin.Formatter;
 import net.valdemarf.parkourplugin.ParkourPlugin;
+import net.valdemarf.parkourplugin.managers.ScoreboardManager;
 import net.valdemarf.parkourplugin.playertime.PlayerTime;
 import net.valdemarf.parkourplugin.managers.CheckpointManager;
 import net.valdemarf.parkourplugin.managers.ParkourManager;
@@ -19,7 +20,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.TreeSet;
 
-public final record MoveListener(ParkourPlugin parkourPlugin, ParkourManager parkourManager) implements Listener {
+public final record MoveListener(ParkourPlugin parkourPlugin, ParkourManager parkourManager, ScoreboardManager scoreboardManager) implements Listener {
 
     @EventHandler
     public void onMove(PlayerMoveEvent e) {
@@ -98,7 +99,7 @@ public final record MoveListener(ParkourPlugin parkourPlugin, ParkourManager par
                                         player.sendMessage(ChatColor.RED + "You've beaten your previous best time!");
 
                                         // Update personal best on scoreboard
-                                        parkourPlugin.getScoreboardManager().updateBoard(parkourPlugin.getScoreboardManager().getBoard(player));
+                                        scoreboardManager.updateBoard(scoreboardManager.getBoard(player));
                                     } else {
                                         oldBest = newTime;
                                         personalBest = prevBest;
@@ -125,23 +126,23 @@ public final record MoveListener(ParkourPlugin parkourPlugin, ParkourManager par
                                 personalBests.add(newTime);
 
                                 // Update personal best on scoreboard
-                                parkourPlugin.getScoreboardManager().updateBoard(parkourPlugin.getScoreboardManager().getBoard(player));
+                                scoreboardManager.updateBoard(scoreboardManager.getBoard(player));
                             }
 
                             // Update personal if already on leaderboard and personal best has been beaten
                             if (playerIsInLeaderboard && newTime.compareTo(oldBest) < 0) {
                                 leaderboardTimes.remove(oldBest);
                                 leaderboardTimes.add(newTime);
-                                parkourPlugin.getScoreboardManager().updateParkourScoreboards();
+                                scoreboardManager.updateParkourScoreboards();
                                 // Add if player is not on leaderboard and it's not full
                             } else if (leaderboardTimes.size() < 5 && !playerIsInLeaderboard) {
                                 leaderboardTimes.add(newTime);
-                                parkourPlugin.getScoreboardManager().updateParkourScoreboards();
+                                scoreboardManager.updateParkourScoreboards();
                                 // Add if player beats the worst time on leaderboard
                             } else if (!leaderboardTimes.contains(personalBest) && personalBest.compareTo(leaderboardTimes.last()) < 0) {
                                 leaderboardTimes.pollLast();
                                 leaderboardTimes.add(personalBest);
-                                parkourPlugin.getScoreboardManager().updateParkourScoreboards();
+                                scoreboardManager.updateParkourScoreboards();
                             }
 
                             // Fire a firework

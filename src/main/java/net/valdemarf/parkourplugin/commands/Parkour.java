@@ -3,7 +3,6 @@ package net.valdemarf.parkourplugin.commands;
 import co.aikar.commands.BaseCommand;
 import co.aikar.commands.annotation.CommandAlias;
 import co.aikar.commands.annotation.Subcommand;
-import net.valdemarf.parkourplugin.ParkourPlugin;
 import net.valdemarf.parkourplugin.managers.CheckpointManager;
 import org.bukkit.entity.Player;
 

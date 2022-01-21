@@ -4,6 +4,7 @@ import fr.mrmicky.fastboard.FastBoard;
 import net.valdemarf.parkourplugin.Formatter;
 import net.valdemarf.parkourplugin.ParkourPlugin;
 import net.valdemarf.parkourplugin.playertime.PlayerTime;
+import net.valdemarf.parkourplugin.playertime.PlayerTimeManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Statistic;
@@ -16,20 +17,23 @@ import static org.bukkit.Bukkit.getServer;
 
 public final class ScoreboardManager {
     private final Map<UUID, FastBoard> boards = new HashMap<>();
+    private final PlayerTimeManager playerTimeManager;
     private final ParkourPlugin parkourPlugin;
+    private final ScoreboardManager scoreboardManager;
 
-    public ScoreboardManager(ParkourPlugin parkourPlugin) {
+    public ScoreboardManager(ParkourPlugin parkourPlugin, PlayerTimeManager playerTimeManager, ScoreboardManager scoreboardManager) {
         this.parkourPlugin = parkourPlugin;
+        this.playerTimeManager = playerTimeManager;
+        this.scoreboardManager = scoreboardManager;
     }
-
 
     //TODO: Only run this whenever someone beats top 5 or personal best
     public void updateBoard(FastBoard board) {
-        TreeSet<PlayerTime> times = (TreeSet<PlayerTime>) parkourPlugin.getPlayerTimeManager().getLeaderboardTimes();
+        TreeSet<PlayerTime> times = (TreeSet<PlayerTime>) playerTimeManager.getLeaderboardTimes();
 
         board.updateTitle(ChatColor.RED + "Parkour");
         board.updateLines(
-                "Best Attempt: " + parkourPlugin.getPlayerTimeManager().getPersonalBest(board.getPlayer().getUniqueId()),
+                "Best Attempt: " + playerTimeManager.getPersonalBest(board.getPlayer().getUniqueId()),
                 "",
                 ChatColor.RED + "Leaderboard:" + ChatColor.WHITE
         );
@@ -77,7 +81,7 @@ public final class ScoreboardManager {
     public void updateParkourScoreboards() {
         for (Player playerLoop : Bukkit.getOnlinePlayers()) {
             if(parkourPlugin.getParkourManager().getParkourPlayers().contains(playerLoop.getUniqueId())) {
-                parkourPlugin.getScoreboardManager().updateBoard(parkourPlugin.getScoreboardManager().getBoard(playerLoop));
+                scoreboardManager.updateBoard(scoreboardManager.getBoard(playerLoop));
             }
         }
     }
