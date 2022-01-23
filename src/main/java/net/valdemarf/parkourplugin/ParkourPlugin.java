@@ -35,11 +35,11 @@ public final class ParkourPlugin extends JavaPlugin {
         configManager.instantiate();
         playerTimeManager = new PlayerTimeManager();
         PaperCommandManager manager = new PaperCommandManager(this);
+
+        // None side effect free objects (relies on other classes):
         scoreboardManager = new ScoreboardManager(this, playerTimeManager, scoreboardManager);
         parkourManager = new ParkourManager(scoreboardManager);
-
-        // None side effect free objects:
-        databaseManager = new Database(configManager, playerTimeManager);
+        databaseManager = new Database(this, configManager, playerTimeManager);
 
         databaseManager.deserializeLeaderboard();
         databaseManager.deserializePersonalBests();
@@ -56,8 +56,8 @@ public final class ParkourPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // Updates the top 5 times in the database
-        databaseManager.saveSync();
+        // Updates the database and stops all tasks after they're done
+        databaseManager.save(true);
     }
 
     // Note on why the main instance should be avoided:

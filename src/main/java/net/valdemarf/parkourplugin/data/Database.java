@@ -10,11 +10,13 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOptions;
+import net.valdemarf.parkourplugin.ParkourPlugin;
 import net.valdemarf.parkourplugin.managers.ConfigManager;
 import net.valdemarf.parkourplugin.playertime.PlayerTime;
 import net.valdemarf.parkourplugin.playertime.PlayerTimeAdapter;
 import net.valdemarf.parkourplugin.playertime.PlayerTimeManager;
 import org.bson.Document;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,18 +32,22 @@ public final class Database {
     private final MongoCollection<Document> personalBestCollection;
 
     private final PlayerTimeManager playerTimeManager;
+    private final ParkourPlugin parkourPlugin;
 
     public static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
     public static Gson GSON = createGsonInstance();
     private static final Logger LOGGER = LoggerFactory.getLogger(Database.class);
 
-    public Database(ConfigManager config, PlayerTimeManager playerTimeManager) {
+    public Database(ParkourPlugin parkourPlugin, ConfigManager config, PlayerTimeManager playerTimeManager) {
         this.playerTimeManager = playerTimeManager;
+        this.parkourPlugin = parkourPlugin;
 
         MongoDatabase database = initializeDatabase(config);
 
         this.leaderboardCollection = database.getCollection("leaderboardtimes");
         this.personalBestCollection = database.getCollection("personalbesttimes");
+
+        autoSave();
     }
 
     /**
@@ -80,16 +86,17 @@ public final class Database {
         Document document = Document.parse(toJson(playerTime));
 
         CompletableFuture.runAsync(() -> getLeaderboardCollection().
-                        replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
-                EXECUTOR);
+                replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
+                Database.EXECUTOR);
     }
 
     public void serializePersonalBest(PlayerTime playerTime) {
+
         Document document = Document.parse(toJson(playerTime));
 
         CompletableFuture.runAsync(() -> getPersonalBestCollection().
                 replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
-                EXECUTOR);
+                Database.EXECUTOR);
     }
 
     public void serializePersonalBests() {
@@ -99,7 +106,7 @@ public final class Database {
     }
 
     public void serializeLeaderboards() {
-        for (PlayerTime playerTime : playerTimeManager.getPersonalBests()) {
+        for (PlayerTime playerTime : playerTimeManager.getLeaderboardTimes()) {
             serializeLeaderboard(playerTime);
         }
     }
@@ -197,25 +204,23 @@ public final class Database {
 
     /**
      * Serializes the data synchronized to avoid running task after server has stopped
+     * @param shutdown Whether the current tasks running should stop or not
      */
-    public void saveSync() {
-        for (PlayerTime playerTime : playerTimeManager.getLeaderboardTimes()) {
-            Document document = Document.parse(toJson(playerTime));
+    public void save(boolean shutdown) {
+        serializeLeaderboards();
+        serializePersonalBests();
 
-            CompletableFuture.runAsync(() -> getLeaderboardCollection().
-                            replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
-                    Database.EXECUTOR);
+        if(shutdown) {
+            shutdown();
         }
+    }
 
-        // Updates the personal bests
-        for (PlayerTime playerTime : playerTimeManager.getPersonalBests()) {
-            Document document = Document.parse(toJson(playerTime));
+    public void autoSave() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
 
-            CompletableFuture.runAsync(() -> getPersonalBestCollection().
-                            replaceOne(Filters.eq("_id", playerTime.getUuid()), document, new ReplaceOptions().upsert(true)),
-                    Database.EXECUTOR);
-        }
-
-        shutdown();
+            }
+        }.runTaskTimerAsynchronously(parkourPlugin, 1, 10 * 60 * 60); // Runs every 10 minutes
     }
 }
